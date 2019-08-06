@@ -1,15 +1,15 @@
 const express = require('express')
-const app = express()
 const path = require('path');
-var formidable = require('formidable')
-
+const formidable = require('formidable')
 const fs = require('fs-extra')
+
+const app = express()
 const port = 3000
 
 const TEMP_DIR = path.join(__dirname + '/temp')
 const MOVIE_DIR = path.join(__dirname + '/movies')
 
-ALLOWED_EXTENTIONS = [
+const ALLOWED_EXTENTIONS = [
     'png',
     'jpg',
     'NEF',
@@ -29,7 +29,7 @@ if(!fs.existsSync(MOVIE_DIR)){
 
 app.get('/upload/', (req, res) => res.sendFile(path.join(__dirname + '/index.html')))
 
-// Handle uploads through Resumable.js
+// Handle uploads resumable
 app.post('/upload/new/', function(req, res){
 
     var form = new formidable.IncomingForm();
