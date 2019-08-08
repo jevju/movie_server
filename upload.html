@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>Uploader</title>
+        <link rel="stylesheet" type="text/css" href="public/upload.css" />
+    </head>
+    <body>
+        <div id="frame">
+
+            <h1>Upload file to server</h1>
+            <p>Resumable file upload</p>
+
+            <hr/>
+
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+            <script src="resumable_upload.js"></script>
+
+            <ul id="upload-list" ></ul>
+
+            <h3>Select files here</h3>
+            <div class="resumable-drop">
+                Drop video files here to upload or select from your computer
+                <input id="selector" class="resumable-browse" type="file" multiple onchange="selected(this);"/>
+            </div>
+
+            <div class="resumable-progress">
+
+            </div>
+
+            <hr/>
+
+            <ul id="selected-list" class="resumable-list" style="display: block;">
+
+            </ul>
+
+            <ul id="item-list">
+
+            </ul>
+
+
+
+            <script type="text/javascript">
+
+                // var selected_files = [];
+
+                var r = new Resumable('/upload/new/');
+
+
+                function selected(s){
+                    for(var i = 0; i < s.files.length; i++){
+                        // Append selected items if not exist in list
+                        var identifier = r.addFile(s.files[i]);
+
+                        if(identifier != null){
+                            // selected_files.push(s.files[i].name);
+                            draw_element(identifier, s.files[i].name);
+
+                        } else{
+                            console.log("Item already selected");
+                        }
+
+                        // selected_files.indexOf(s.files[i].name) === -1 ? selected_files.push(s.files[i].name) : console.log("Item already selected");
+
+                    }
+                    // console.log(selected_files.length);
+                    s.value = '';
+                    // show_selected();
+                }
+
+                function pause_element(item){
+                    var parent = item.parentNode;
+                    const identifier = parent.id;
+
+
+
+                    item.setAttribute('onclick', 'upload_element(this);');
+                    item.setAttribute('class', 'resumable-action-upload btn');
+                    item.innerHTML = 'upload';
+
+
+                    r.pauseFile(identifier);
+
+                }
+
+                function upload_element(item){
+
+                    move_element_to_upload(item);
+
+
+                    var parent = item.parentNode;
+                    const identifier = parent.id;
+
+                    item.setAttribute('onclick', 'pause_element(this);');
+                    item.setAttribute('class', 'resumable-action-pause btn');
+                    item.innerHTML = 'pause';
+
+                    // console.log(item.attributes.onclick)
+                    // return
+
+                    var s = parent.getElementsByClassName('stat-item')[0];
+                    // s.innerHTML = 'Uploading.. ';
+
+
+
+                    r.uploadFile(identifier, status_element);
+
+                    // console.log(parent);
+                    // status = parent.getElementsByClassName('stat-item')[0].innerHTML;
+                    // console.log(status)
+                }
+
+                function finish_element(identifier){
+                    // console.log('element finisch called');
+                    // console.log(identifier);
+                    // console.log(status);
+                    var item = document.getElementById(identifier);
+
+                    // Remove progressBar
+                    var bar = item.getElementsByClassName('progress-bar')[0];
+                    bar.parentNode.removeChild(bar);
+
+                    var stat = item.getElementsByClassName('stat-item')[0];
+                    stat.innerHTML = 'Done uploading';
+
+                    // Remove buttons
+                    var cancel_btn = item.getElementsByClassName('resumable-action-cancel')[0];
+                    cancel_btn.parentNode.removeChild(cancel_btn);
+
+                    var pause_btn = item.getElementsByClassName('resumable-action-pause')[0];
+                    pause_btn.parentNode.removeChild(pause_btn);
+
+                    item.setAttribute('style', 'background-color: rgb(200,220,170);');
+                }
+
+                function update_progress_bar(identifier){
+                    var fileObj = r.getFile(identifier);
+
+                    // Calculate percentage
+                    var per = fileObj['currentChunk'] / fileObj['totalChunks'];
+                    per = Math.trunc(per * 100);
+
+                    // Show percentage
+                    var item = document.getElementById(identifier);
+                    var stat = item.getElementsByClassName('stat-item')[0];
+                    stat.innerHTML = 'Uploading ' + per.toString() + '%';
+
+                    // Update progress
+                    var param = 'width:' + per.toString() + '%';
+                    var bar = item.getElementsByClassName('progress-' + fileObj['identifier']);
+                    bar[0].setAttribute("style",param);
+                }
+
+                // TODO: Implement opportunity to reuplod/ update file.
+                // For now, just finish
+                function exists_element(identifier){
+                    var item = document.getElementById(identifier);
+                    var stat = item.getElementsByClassName('stat-item')[0];
+                    stat.innerHTML = 'File already uploaded';
+
+                    // Remove progressBar
+                    var bar = item.getElementsByClassName('progress-bar')[0];
+                    bar.parentNode.removeChild(bar);
+
+                    // Remove buttons
+                    var cancel_btn = item.getElementsByClassName('resumable-action-cancel')[0];
+                    cancel_btn.parentNode.removeChild(cancel_btn);
+
+                    var pause_btn = item.getElementsByClassName('resumable-action-pause')[0];
+                    pause_btn.parentNode.removeChild(pause_btn);
+
+                    item.setAttribute('style', 'background-color: rgb(200,220,170);');
+                }
+
+                function invalid_element(identifier){
+                    var item = document.getElementById(identifier);
+                    var stat = item.getElementsByClassName('stat-item')[0];
+                    stat.innerHTML = 'File extention not supported';
+
+                    // Remove progressBar
+                    var bar = item.getElementsByClassName('progress-bar')[0];
+                    bar.parentNode.removeChild(bar);
+
+                    // Remove buttons
+                    var cancel_btn = item.getElementsByClassName('resumable-action-cancel')[0];
+                    cancel_btn.parentNode.removeChild(cancel_btn);
+
+                    var pause_btn = item.getElementsByClassName('resumable-action-pause')[0];
+                    pause_btn.parentNode.removeChild(pause_btn);
+
+                    item.setAttribute('style', 'background-color: rgba(255,0,0,0.2);');
+
+                }
+
+
+                function status_element(identifier, status){
+                    // sucessfully uploaded
+                    if(status == 'done'){
+                        finish_element(identifier);
+                    }
+
+                    if(status == 'chunkSuccess'){
+                        update_progress_bar(identifier);
+                        // console.log('uploaging from der');
+                    }
+
+                    if(status == 'fileExists'){
+                        exists_element(identifier);
+                    }
+
+                    if(status == 'illegalExt'){
+                        invalid_element(identifier);
+                    }
+
+                }
+
+                // Functions for manipulating DOM
+                function draw_element(identifier, name){
+                    var item_list = document.getElementById('item-list');
+                    if(item_list == null){
+                        return;
+                    }
+
+                    // create elements
+                    var item = document.createElement("li");
+                    var stat_field = document.createElement('span');
+                    var name_field = document.createElement('span');
+                    var upload_btn = document.createElement('span');
+                    var delete_btn = document.createElement('span');
+
+
+                    // Set values and attributes
+                    item.setAttribute('id',identifier);
+                    item.setAttribute('class','resumable-item');
+                    stat_field.setAttribute('class', 'stat-item');
+                    name_field.setAttribute('class', 'name-item');
+                    upload_btn.setAttribute('class', 'resumable-action-upload btn');
+                    upload_btn.setAttribute('onclick', 'upload_element(this);');
+                    delete_btn.setAttribute('class', 'resumable-action-delete btn');
+                    delete_btn.setAttribute('onclick', 'remove_element(this);');
+
+                    stat_field.innerHTML = 'Selected';
+                    name_field.innerHTML = name;
+                    upload_btn.innerHTML = 'upload';
+                    delete_btn.innerHTML = 'remove';
+
+                    // item.innerHTML = 'test';
+
+                    // Append elements
+                    item.appendChild(stat_field);
+                    item.appendChild(name_field);
+                    item.appendChild(upload_btn);
+                    item.appendChild(delete_btn);
+
+                    item_list.appendChild(item);
+                }
+
+                function cancel_element(item){
+                    var li_item = item.parentNode;
+                    var identifier = li_item.id;
+
+                    r.pauseFile(identifier);
+
+                    var cancel_btn = li_item.getElementsByClassName('resumable-action-cancel')[0];
+                    cancel_btn.parentNode.removeChild(cancel_btn);
+
+                    var pause_btn = li_item.getElementsByClassName('resumable-action-pause')[0];
+                    pause_btn.parentNode.removeChild(pause_btn);
+
+                    var progressBar = li_item.getElementsByClassName('progress-bar')[0];
+                    progressBar.parentNode.removeChild(progressBar);
+
+                    var delete_btn = document.createElement('span');
+                    delete_btn.setAttribute('class', 'resumable-action-delete btn');
+                    delete_btn.setAttribute('onclick', 'remove_element(this);');
+                    delete_btn.innerHTML = 'Remove';
+
+                    li_item.appendChild(delete_btn);
+
+                    var stat = li_item.getElementsByClassName('stat-item')[0];
+                    stat.innerHTML = 'Canceled';
+
+                    // console.log(li_item);
+
+                }
+
+                function remove_element(item){
+                    var parent = item.parentNode;
+
+                    // Remove from resumable
+                    const identifier = parent.id;
+                    r.removeFile(identifier);
+
+                    // Remove element from document
+                    parent.parentNode.removeChild(parent);
+                }
+
+                function move_element_to_upload(item){
+
+                    // Get list item to move
+                    var li_item = item.parentNode;
+                    var identifier = li_item.id;
+                    console.log(identifier);
+
+                    console.log(li_item);
+
+                    // Change status to uploading
+                    var stat = li_item.getElementsByClassName('stat-item')[0];
+                    stat.innerHTML = 'Uploading';
+
+                    // Change delete_btn to cancel_btn
+                    var del = li_item.getElementsByClassName('resumable-action-delete')[0];
+                    del.setAttribute('class', 'resumable-action-cancel btn');
+                    del.setAttribute('onclick', 'cancel_element(this);');
+                    del.innerHTML = 'Cancel';
+
+                    // stat[0].innerHTML('Uploading');
+
+                    // Add progressBar to list item
+                    var progressBar = document.createElement('div');
+                    var progress = document.createElement('div');
+
+                    progressBar.setAttribute('class', 'progress-bar');
+                    progress.setAttribute('class', 'progress ' + 'progress-' + identifier);
+                    // progress.setAttribute('class', 'progress');
+
+                    progressBar.appendChild(progress);
+                    li_item.appendChild(progressBar);
+
+                    // Get list from new item location
+                    var ul = document.getElementById('upload-list');
+                    console.log(ul);
+
+                    // Append item to list
+                    ul.appendChild(li_item);
+                }
+
+
+
+
+
+
+
+
+
+
+                // Old functions currently not in use
+                function show_selected(){
+                    var item_list = document.getElementById('item-list');
+                    item_list.innerHTML = '';
+
+                    for(var i = 0; i < selected_files.length; i++){
+
+                        // create elements
+                        var item = document.createElement("li");
+                        var stat_field = document.createElement('span');
+                        var name_field = document.createElement('span');
+                        var upload_btn = document.createElement('span');
+                        var delete_btn = document.createElement('span');
+
+                        // Set values and attributes
+                        item.setAttribute('class','resumable-item');
+                        stat_field.setAttribute('class', 'stat-item');
+                        name_field.setAttribute('class', 'name-item');
+                        upload_btn.setAttribute('class', 'resumable-action-upload');
+                        // upload_btn.setAttribute('onclick', '')
+                        delete_btn.setAttribute('class', 'resumable-action-delete');
+                        delete_btn.setAttribute('onclick', 'selected_item_delete(this);');
+
+                        stat_field.innerHTML = 'Uploading';
+                        name_field.innerHTML = selected_files[i];
+                        upload_btn.innerHTML = 'upload';
+                        delete_btn.innerHTML = 'remove';
+
+                        // item.innerHTML = 'test';
+
+                        // Append elements
+                        item.appendChild(stat_field);
+                        item.appendChild(name_field);
+                        item.appendChild(upload_btn);
+                        item.appendChild(delete_btn);
+
+                        item_list.appendChild(item);
+
+                        console.log(selected_files[i]);
+                    }
+                }
+
+                function selected_item_delete(item){
+
+                    // Remove item from selected list
+                    var parent = item.parentNode;
+                    var name = parent.getElementsByClassName('name-item')[0].innerHTML;
+                    var i = selected_files.indexOf(name);
+                    if(i > -1){
+                        selected_files.splice(i,1);
+                    }
+
+                    // Remove html element from list
+                    parent.parentNode.removeChild(parent);
+                }
+
+
+
+
+
+
+
+            // id = r.addFile('testfile');
+            // console.log(id);
+
+            // r.removeFile('testFile')
+
+
+
+            </script>
+
+
+
+        </div>
+    </body>
+</html>

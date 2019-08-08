@@ -87,12 +87,10 @@ module.exports = resumable = function(temporaryFolder){
   //'done', filename, original_filename, identifier
   //'invalid_resumable_request', null, null, null
   //'non_resumable_request', null, null, null
-  $.post = function(req, callback){
+  $.post = function(fields, files, callback){
 
-    var fields = req.query;
-    var files = req.body;
-
-    console.log(req)
+    // var fields = req.body;
+    // var files = req.files;
 
     var chunkNumber = fields['resumableChunkNumber'];
     var chunkSize = fields['resumableChunkSize'];
